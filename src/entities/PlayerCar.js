@@ -35,6 +35,12 @@ export class PlayerCar {
 
     // Input
     this.cursors = scene.input.keyboard.createCursorKeys();
+    this.wasd = {
+      up: scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+      down: scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+      left: scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+      right: scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
+    };
     this.spaceBar = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
     // Particle emitters
@@ -111,10 +117,10 @@ export class PlayerCar {
 
     // Gather input
     const input = {
-      accelerate: this.cursors.up.isDown,
-      brake: this.cursors.down.isDown,
-      left: this.cursors.left.isDown,
-      right: this.cursors.right.isDown
+      accelerate: this.cursors.up.isDown || this.wasd.up.isDown,
+      brake: this.cursors.down.isDown || this.wasd.down.isDown,
+      left: this.cursors.left.isDown || this.wasd.left.isDown,
+      right: this.cursors.right.isDown || this.wasd.right.isDown
     };
 
     // Temporarily modify max speed if nitro or slowed

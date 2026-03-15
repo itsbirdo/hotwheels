@@ -222,9 +222,31 @@ export const ITEM_BOX_POSITIONS = [
   { x: 9.5 * TILE_SIZE, y: 24 * TILE_SIZE },     // Left straight (mid-way)
 ];
 
-// Checkpoint indices (subset of waypoints used for lap validation)
-// Player must pass through all checkpoints in order to complete a lap
+// Checkpoint indices (legacy, used by old system)
 export const CHECKPOINT_INDICES = [0, 5, 11, 17, 23, 28];
+
+// Checkpoint gates — lines spanning the full road width.
+// Each gate: { x1, y1, x2, y2 } endpoints of a line across the road.
+// Placed on straight sections so every car MUST cross them.
+// Gate 0 = finish line, gates 1-4 = mid-track checkpoints.
+//
+// Track roads:
+//   Bottom straight: y=32-34, x=8-22 (horizontal)
+//   Right straight:  x=22-24, y=10-32 (vertical)
+//   Top straight:    y=10-12, x=8-24  (horizontal)
+//   Left straight:   x=8-10,  y=10-32 (vertical)
+export const CHECKPOINT_GATES = [
+  // Gate 0: FINISH LINE — vertical line across bottom straight at x=14
+  { x1: 14 * TILE_SIZE, y1: 31 * TILE_SIZE, x2: 14 * TILE_SIZE, y2: 35 * TILE_SIZE },
+  // Gate 1: Right straight mid — horizontal line at y=20
+  { x1: 21 * TILE_SIZE, y1: 20 * TILE_SIZE, x2: 25 * TILE_SIZE, y2: 20 * TILE_SIZE },
+  // Gate 2: Top straight mid — vertical line at x=18
+  { x1: 18 * TILE_SIZE, y1: 9 * TILE_SIZE, x2: 18 * TILE_SIZE, y2: 13 * TILE_SIZE },
+  // Gate 3: Left straight mid — horizontal line at y=22
+  { x1: 7 * TILE_SIZE, y1: 22 * TILE_SIZE, x2: 11 * TILE_SIZE, y2: 22 * TILE_SIZE },
+  // Gate 4: Bottom straight before finish — vertical line at x=11 (after the left corner)
+  { x1: 11 * TILE_SIZE, y1: 31 * TILE_SIZE, x2: 11 * TILE_SIZE, y2: 35 * TILE_SIZE },
+];
 
 // Decorations placed around the track
 export const DECORATIONS = [

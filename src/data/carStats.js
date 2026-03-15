@@ -6,10 +6,10 @@ export const CAR_STATS = {
     acceleration: 3, // out of 5
     handling: 2,     // out of 5
     // Actual physics values
-    maxSpeed: 480,
-    accelRate: 220,
-    turnRate: 2.8,
-    friction: 0.97,
+    maxSpeed: 640,
+    accelRate: 300,
+    turnRate: 1.575,
+    friction: 0.975,
     pickupRadius: 1.0,
     colors: { primary: '#1a1a1a', secondary: '#cc2222', accent: '#ff4444' }
   },
@@ -19,10 +19,10 @@ export const CAR_STATS = {
     speed: 3,
     acceleration: 4,
     handling: 4,
-    maxSpeed: 440,
-    accelRate: 280,
-    turnRate: 3.8,
-    friction: 0.965,
+    maxSpeed: 590,
+    accelRate: 380,
+    turnRate: 2.14,
+    friction: 0.975,
     pickupRadius: 1.0,
     colors: { primary: '#cc2222', secondary: '#ffffff', accent: '#ff6666' }
   },
@@ -32,16 +32,25 @@ export const CAR_STATS = {
     speed: 3,
     acceleration: 3,
     handling: 3,
-    maxSpeed: 450,
-    accelRate: 250,
-    turnRate: 3.4,
-    friction: 0.965,
+    maxSpeed: 600,
+    accelRate: 340,
+    turnRate: 1.91,
+    friction: 0.975,
     pickupRadius: 1.5, // wider pickup radius bonus
     colors: { primary: '#ff3366', secondary: '#33ccff', accent: '#ffcc00' }
   }
 };
 
 export const CAR_KEYS = ['monsterTruck', 'sportsCar', 'topHatCar'];
+
+export const SPEED_CLASS = {
+  '50cc': { name: '50cc', speedMult: 0.30 },
+  '100cc': { name: '100cc', speedMult: 0.60 },
+  '150cc': { name: '150cc', speedMult: 1.00 },
+  '300cc': { name: '300cc', speedMult: 3.00 }
+};
+
+export const SPEED_CLASS_KEYS = ['50cc', '100cc', '150cc', '300cc'];
 
 export const DIFFICULTY = {
   easy: {

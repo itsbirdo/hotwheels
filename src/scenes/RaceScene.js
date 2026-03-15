@@ -23,6 +23,8 @@ export class RaceScene extends Phaser.Scene {
     this.playerCarStats = data.carStats;
     this.difficulty = data.difficulty;
     this.difficultyName = data.difficultyName;
+    this.speedClass = data.speedClass;
+    this.speedClassName = data.speedClassName;
   }
 
   create() {
@@ -52,10 +54,15 @@ export class RaceScene extends Phaser.Scene {
     const pStart = START_POSITIONS.player;
     const aStart = START_POSITIONS.ai;
 
-    this.player = new PlayerCar(this, pStart.x, pStart.y, this.playerCarKey, this.playerCarStats);
+    // Apply speed class multiplier to stats
+    const sm = this.speedClass.speedMult;
+    const playerStatsScaled = { ...this.playerCarStats, maxSpeed: this.playerCarStats.maxSpeed * sm, accelRate: this.playerCarStats.accelRate * sm };
+    const aiStatsScaled = { ...aiStats, maxSpeed: aiStats.maxSpeed * sm, accelRate: aiStats.accelRate * sm };
+
+    this.player = new PlayerCar(this, pStart.x, pStart.y, this.playerCarKey, playerStatsScaled);
     this.player.physics.setAngle(pStart.angle);
 
-    this.aiCar = new AICar(this, aStart.x, aStart.y, aiCarKey, aiStats, this.difficulty);
+    this.aiCar = new AICar(this, aStart.x, aStart.y, aiCarKey, aiStatsScaled, this.difficulty);
     this.aiCar.physics.setAngle(aStart.angle);
 
     // Power-ups
@@ -73,6 +80,11 @@ export class RaceScene extends Phaser.Scene {
 
     // HUD
     this.hud = new RaceHUD(this);
+
+    // Pause menu state
+    this.paused = false;
+    this.pauseContainer = null;
+    this.input.keyboard.on('keydown-ESC', () => this.togglePauseMenu());
 
     // Start countdown
     this.startCountdown();
@@ -267,8 +279,52 @@ export class RaceScene extends Phaser.Scene {
         carKey: this.playerCarKey,
         carStats: this.playerCarStats,
         difficulty: this.difficulty,
-        difficultyName: this.difficultyName
+        difficultyName: this.difficultyName,
+        speedClass: this.speedClass,
+        speedClassName: this.speedClassName
       });
     });
+  }
+
+  togglePauseMenu() {
+    if (this.raceFinished) return;
+    if (this.paused) {
+      this.closePauseMenu();
+    } else {
+      this.openPauseMenu();
+    }
+  }
+
+  openPauseMenu() {
+    this.paused = true;
+    this.scene.pause();
+
+    const width = 800;
+    const height = 600;
+
+    // Create a new overlay scene on top
+    this.scene.launch('PauseScene', {
+      raceScene: this,
+      raceMusic: this.raceMusic
+    });
+  }
+
+  closePauseMenu() {
+    this.paused = false;
+    this.scene.resume();
+  }
+
+  quitToTitle() {
+    this.soundManager.stopEngine();
+    this.soundManager.destroy();
+    if (this.raceMusic) {
+      this.raceMusic.stop();
+      this.raceMusic.destroy();
+    }
+    this.hud.destroy();
+    this.player.destroy();
+    this.aiCar.destroy();
+    this.powerUpManager.destroy();
+    this.scene.start('CarSelectScene');
   }
 }

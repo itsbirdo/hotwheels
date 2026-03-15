@@ -33,8 +33,8 @@ export class CarPhysics {
     let offRoad = false;
     let collided = false;
 
-    // Turning — only effective when moving
-    const speedFactor = Math.min(this.speed / 50, 1);
+    // Turning — scales with speed but always allows some turning so you can escape walls
+    const speedFactor = Math.max(0.7, Math.min(Math.abs(this.speed) / 50, 1));
     if (input.left) {
       this.angle -= this.turnRate * speedFactor * dt;
     }
@@ -76,26 +76,26 @@ export class CarPhysics {
       const yOnly = !isOnRoad(x, newY);
 
       if (xOnly && yOnly) {
-        // Both directions blocked — stop
+        // Both directions blocked — keep most speed so player can turn out
         newX = x;
         newY = y;
-        this.speed *= 0.3;
+        this.speed *= 0.8;
         collided = true;
       } else if (xOnly) {
         // Slide along Y
         newX = x;
-        this.speed *= 0.5;
+        this.speed *= 0.88;
         collided = true;
       } else if (yOnly) {
         // Slide along X
         newY = y;
-        this.speed *= 0.5;
+        this.speed *= 0.88;
         collided = true;
       } else {
-        // Diagonal blocked — try to nudge back
+        // Diagonal blocked
         newX = x;
         newY = y;
-        this.speed *= 0.4;
+        this.speed *= 0.85;
         collided = true;
       }
     }

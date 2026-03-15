@@ -17,6 +17,8 @@ export class ResultsScene extends Phaser.Scene {
     this.carStats = data.carStats;
     this.difficulty = data.difficulty;
     this.difficultyName = data.difficultyName;
+    this.speedClass = data.speedClass;
+    this.speedClassName = data.speedClassName;
   }
 
   create() {
@@ -145,7 +147,7 @@ export class ResultsScene extends Phaser.Scene {
     }
 
     // Difficulty label
-    this.add.text(width / 2, height - 130, `Difficulty: ${this.difficultyName.toUpperCase()}`, {
+    this.add.text(width / 2, height - 130, `${this.difficultyName.toUpperCase()}  |  ${this.speedClassName.toUpperCase()}`, {
       fontFamily: 'monospace',
       fontSize: '12px',
       color: '#666666'
@@ -214,7 +216,9 @@ export class ResultsScene extends Phaser.Scene {
       carKey: this.carKey,
       carStats: this.carStats,
       difficulty: this.difficulty,
-      difficultyName: this.difficultyName
+      difficultyName: this.difficultyName,
+      speedClass: this.speedClass,
+      speedClassName: this.speedClassName
     });
   }
 

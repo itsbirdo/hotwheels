@@ -122,7 +122,7 @@ export class PowerUpManager {
       y: oy,
       owner: car,
       lifetime: 8,
-      radius: 18
+      radius: 50
     });
   }
 
@@ -148,7 +148,7 @@ export class PowerUpManager {
       y: baseY,
       owner: car,
       lifetime: 10,
-      radius: 22
+      radius: 50
     });
   }
 
@@ -166,11 +166,12 @@ export class PowerUpManager {
       x: mx,
       y: my,
       angle,
-      speed: 400,
+      speed: 900,
       owner: car,
       target,
       distanceTraveled: 0,
-      maxDistance: 300
+      maxDistance: 1200,
+      homingStrength: 3.0
     });
   }
 
@@ -218,6 +219,16 @@ export class PowerUpManager {
   updateMissiles(dt, player, ai) {
     for (let i = this.activeMissiles.length - 1; i >= 0; i--) {
       const m = this.activeMissiles[i];
+
+      // Homing: gently steer toward target
+      const toTargetX = m.target.x - m.x;
+      const toTargetY = m.target.y - m.y;
+      const targetAngle = Math.atan2(toTargetY, toTargetX);
+      let angleDiff = targetAngle - m.angle;
+      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      m.angle += angleDiff * m.homingStrength * dt;
+
       const dx = Math.cos(m.angle) * m.speed * dt;
       const dy = Math.sin(m.angle) * m.speed * dt;
       m.x += dx;
@@ -226,6 +237,7 @@ export class PowerUpManager {
 
       m.sprite.x = m.x;
       m.sprite.y = m.y;
+      m.sprite.rotation = m.angle + Math.PI / 2;
 
       // Check if exceeded max distance
       if (m.distanceTraveled >= m.maxDistance) {
@@ -236,8 +248,8 @@ export class PowerUpManager {
 
       // Check collision with target
       const dist = this.distance(m.x, m.y, m.target.x, m.target.y);
-      if (dist < 25) {
-        m.target.applySlow(1500);
+      if (dist < 45) {
+        this.applyMissileHit(m.target);
         m.sprite.destroy();
         this.activeMissiles.splice(i, 1);
         continue;
@@ -247,14 +259,20 @@ export class PowerUpManager {
       const other = m.owner === player ? ai : player;
       if (other !== m.target) {
         const dist2 = this.distance(m.x, m.y, other.x, other.y);
-        if (dist2 < 25) {
-          other.applySlow(1500);
+        if (dist2 < 45) {
+          this.applyMissileHit(other);
           m.sprite.destroy();
           this.activeMissiles.splice(i, 1);
           continue;
         }
       }
     }
+  }
+
+  applyMissileHit(car) {
+    // Immediate hard stop + spin out — should feel punishing
+    car.physics.setSpeed(car.physics.speed * 0.15);
+    car.applySpinOut(1200);
   }
 
   distance(x1, y1, x2, y2) {

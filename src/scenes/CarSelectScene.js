@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
-import { CAR_STATS, CAR_KEYS, DIFFICULTY } from '../data/carStats.js';
+import { CAR_STATS, CAR_KEYS, DIFFICULTY, SPEED_CLASS, SPEED_CLASS_KEYS } from '../data/carStats.js';
 import { SoundManager } from '../audio/SoundManager.js';
 
 /**
  * Car selection screen — side-by-side layout with stats.
- * After selecting car → difficulty selection overlay.
+ * Flow: Car Select → Difficulty → Speed Class → Race
  */
 export class CarSelectScene extends Phaser.Scene {
 
@@ -19,7 +19,6 @@ export class CarSelectScene extends Phaser.Scene {
     this.soundManager = new SoundManager(this);
     this.soundManager.init();
 
-    // Background
     this.cameras.main.setBackgroundColor('#1a1a2e');
 
     // Title
@@ -32,8 +31,8 @@ export class CarSelectScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // State
-    this.selectedCarIndex = 1; // Default to sports car
-    this.showingDifficulty = false;
+    this.selectedCarIndex = 1;
+    this.currentOverlay = null; // null | 'difficulty' | 'speedClass'
     this.selectedDifficulty = null;
 
     // Car cards
@@ -47,7 +46,6 @@ export class CarSelectScene extends Phaser.Scene {
       const stats = CAR_STATS[key];
       const cx = startX + i * (cardWidth + spacing);
       const cy = 240;
-
       const card = this.createCarCard(cx, cy, key, stats, i);
       this.carCards.push(card);
     });
@@ -60,11 +58,6 @@ export class CarSelectScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Keyboard controls
-    this.leftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
-    this.rightKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
-    this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
-    this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
-
     this.input.keyboard.on('keydown-LEFT', () => this.navigate(-1));
     this.input.keyboard.on('keydown-RIGHT', () => this.navigate(1));
     this.input.keyboard.on('keydown-ENTER', () => this.confirm());
@@ -76,18 +69,15 @@ export class CarSelectScene extends Phaser.Scene {
   createCarCard(cx, cy, carKey, stats, index) {
     const container = this.add.container(cx, cy);
 
-    // Card background
     const bg = this.add.graphics();
     bg.fillStyle(0x222244, 0.8);
     bg.fillRoundedRect(-90, -120, 180, 300, 8);
     container.add(bg);
 
-    // Car sprite (scaled up)
     const carSprite = this.add.image(0, -60, `car_${carKey}`);
     carSprite.setScale(3);
     container.add(carSprite);
 
-    // Name
     const name = this.add.text(0, 0, stats.name, {
       fontFamily: 'monospace',
       fontSize: '16px',
@@ -97,14 +87,12 @@ export class CarSelectScene extends Phaser.Scene {
     }).setOrigin(0.5);
     container.add(name);
 
-    // Stat bars
     const statNames = ['SPD', 'ACC', 'HND'];
     const statValues = [stats.speed, stats.acceleration, stats.handling];
     const statColors = [0xff4444, 0x44ff44, 0x4444ff];
 
     statNames.forEach((statName, si) => {
       const sy = 30 + si * 28;
-
       const label = this.add.text(-70, sy, statName, {
         fontFamily: 'monospace',
         fontSize: '12px',
@@ -112,20 +100,17 @@ export class CarSelectScene extends Phaser.Scene {
       });
       container.add(label);
 
-      // Bar background
       const barBg = this.add.graphics();
       barBg.fillStyle(0x333333);
       barBg.fillRect(-30, sy + 2, 100, 12);
       container.add(barBg);
 
-      // Bar fill
       const barFill = this.add.graphics();
       barFill.fillStyle(statColors[si]);
       barFill.fillRect(-30, sy + 2, (statValues[si] / 5) * 100, 12);
       container.add(barFill);
     });
 
-    // Bonus text for Top Hat
     if (carKey === 'topHatCar') {
       const bonus = this.add.text(0, 118, '★ WIDE PICKUP', {
         fontFamily: 'monospace',
@@ -135,7 +120,6 @@ export class CarSelectScene extends Phaser.Scene {
       container.add(bonus);
     }
 
-    // Description
     const desc = this.add.text(0, 138, stats.description, {
       fontFamily: 'monospace',
       fontSize: '9px',
@@ -145,21 +129,18 @@ export class CarSelectScene extends Phaser.Scene {
     }).setOrigin(0.5);
     container.add(desc);
 
-    // Border (selection indicator)
     const border = this.add.graphics();
     container.add(border);
 
-    // Click handler
     const hitArea = this.add.rectangle(0, 30, 180, 300, 0x000000, 0);
     hitArea.setInteractive({ useHandCursor: true });
     hitArea.on('pointerdown', () => {
-      this.selectedCarIndex = index;
-      this.updateSelection();
-      this.soundManager.play('select');
-    });
-    hitArea.on('pointerdown', () => {
-      if (this.selectedCarIndex === index) {
+      if (this.selectedCarIndex === index && !this.currentOverlay) {
         this.confirm();
+      } else if (!this.currentOverlay) {
+        this.selectedCarIndex = index;
+        this.updateSelection();
+        this.soundManager.play('select');
       }
     });
     container.add(hitArea);
@@ -168,7 +149,7 @@ export class CarSelectScene extends Phaser.Scene {
   }
 
   navigate(dir) {
-    if (this.showingDifficulty) return;
+    if (this.currentOverlay) return;
     this.selectedCarIndex = (this.selectedCarIndex + dir + CAR_KEYS.length) % CAR_KEYS.length;
     this.updateSelection();
     this.soundManager.play('select');
@@ -186,34 +167,37 @@ export class CarSelectScene extends Phaser.Scene {
         card.container.setAlpha(0.6);
       }
     });
-    // Reset alpha for selected
     this.carCards[this.selectedCarIndex].container.setAlpha(1);
   }
 
   confirm() {
-    if (this.showingDifficulty) return;
-    this.showDifficultySelect();
+    if (!this.currentOverlay) {
+      this.showDifficultySelect();
+    }
   }
 
   goBack() {
-    if (this.showingDifficulty) {
+    if (this.currentOverlay === 'speedClass') {
+      this.hideSpeedClassSelect();
+      this.showDifficultySelect();
+    } else if (this.currentOverlay === 'difficulty') {
       this.hideDifficultySelect();
     }
   }
 
+  // ── Difficulty Select ──
+
   showDifficultySelect() {
-    this.showingDifficulty = true;
+    this.currentOverlay = 'difficulty';
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    // Overlay
     this.diffOverlay = this.add.graphics();
     this.diffOverlay.fillStyle(0x000000, 0.7);
     this.diffOverlay.fillRect(0, 0, width, height);
 
     this.diffContainer = this.add.container(width / 2, height / 2);
 
-    // Title
     const title = this.add.text(0, -80, 'SELECT DIFFICULTY', {
       fontFamily: 'monospace',
       fontSize: '28px',
@@ -223,7 +207,6 @@ export class CarSelectScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.diffContainer.add(title);
 
-    // Difficulty buttons
     const difficulties = ['easy', 'medium', 'hard'];
     const diffColors = { easy: 0x44cc44, medium: 0xcccc44, hard: 0xcc4444 };
     const diffDescs = {
@@ -232,7 +215,6 @@ export class CarSelectScene extends Phaser.Scene {
       hard: 'Intense! AI is ruthless.'
     };
 
-    this.diffButtons = [];
     difficulties.forEach((diff, i) => {
       const by = -20 + i * 55;
 
@@ -259,18 +241,12 @@ export class CarSelectScene extends Phaser.Scene {
       }).setOrigin(0.5);
       this.diffContainer.add(desc);
 
-      // Click handler
       const hitArea = this.add.rectangle(0, by, 240, 44, 0x000000, 0);
       hitArea.setInteractive({ useHandCursor: true });
-      hitArea.on('pointerdown', () => {
-        this.startRace(diff);
-      });
+      hitArea.on('pointerdown', () => this.selectDifficulty(diff));
       this.diffContainer.add(hitArea);
-
-      this.diffButtons.push({ diff, btnBg, label });
     });
 
-    // Key hints
     const hint = this.add.text(0, 130, '1  EASY     2  MEDIUM     3  HARD     ESC  BACK', {
       fontFamily: 'monospace',
       fontSize: '11px',
@@ -278,20 +254,134 @@ export class CarSelectScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.diffContainer.add(hint);
 
-    // Keyboard shortcuts
-    this.input.keyboard.on('keydown-ONE', () => this.startRace('easy'));
-    this.input.keyboard.on('keydown-TWO', () => this.startRace('medium'));
-    this.input.keyboard.on('keydown-THREE', () => this.startRace('hard'));
+    this.diffKeyOne = () => this.selectDifficulty('easy');
+    this.diffKeyTwo = () => this.selectDifficulty('medium');
+    this.diffKeyThree = () => this.selectDifficulty('hard');
+    this.input.keyboard.on('keydown-ONE', this.diffKeyOne);
+    this.input.keyboard.on('keydown-TWO', this.diffKeyTwo);
+    this.input.keyboard.on('keydown-THREE', this.diffKeyThree);
+  }
+
+  selectDifficulty(diff) {
+    this.selectedDifficulty = diff;
+    this.soundManager.play('select');
+    this.hideDifficultySelect();
+    this.showSpeedClassSelect();
   }
 
   hideDifficultySelect() {
-    this.showingDifficulty = false;
-    if (this.diffOverlay) this.diffOverlay.destroy();
-    if (this.diffContainer) this.diffContainer.destroy();
+    this.input.keyboard.off('keydown-ONE', this.diffKeyOne);
+    this.input.keyboard.off('keydown-TWO', this.diffKeyTwo);
+    this.input.keyboard.off('keydown-THREE', this.diffKeyThree);
+    if (this.diffOverlay) { this.diffOverlay.destroy(); this.diffOverlay = null; }
+    if (this.diffContainer) { this.diffContainer.destroy(); this.diffContainer = null; }
+    if (!this.currentOverlay || this.currentOverlay === 'difficulty') {
+      this.currentOverlay = null;
+    }
   }
 
-  startRace(difficulty) {
+  // ── Speed Class Select ──
+
+  showSpeedClassSelect() {
+    this.currentOverlay = 'speedClass';
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    this.speedOverlay = this.add.graphics();
+    this.speedOverlay.fillStyle(0x000000, 0.7);
+    this.speedOverlay.fillRect(0, 0, width, height);
+
+    this.speedContainer = this.add.container(width / 2, height / 2);
+
+    const title = this.add.text(0, -100, 'SELECT SPEED CLASS', {
+      fontFamily: 'monospace',
+      fontSize: '28px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4
+    }).setOrigin(0.5);
+    this.speedContainer.add(title);
+
+    const classColors = {
+      '50cc': 0x44cc44,
+      '100cc': 0x44aaff,
+      '150cc': 0xcccc44,
+      '300cc': 0xff4444
+    };
+    const classDescs = {
+      '50cc': 'Cruising speed. Learn the track.',
+      '100cc': 'Getting faster. A solid pace.',
+      '150cc': 'Full speed. The real deal.',
+      '300cc': 'INSANE. Triple max speed!'
+    };
+
+    SPEED_CLASS_KEYS.forEach((key, i) => {
+      const by = -50 + i * 55;
+
+      const btnBg = this.add.graphics();
+      btnBg.fillStyle(classColors[key], 0.3);
+      btnBg.fillRoundedRect(-120, by - 18, 240, 44, 6);
+      btnBg.lineStyle(2, classColors[key]);
+      btnBg.strokeRoundedRect(-120, by - 18, 240, 44, 6);
+      this.speedContainer.add(btnBg);
+
+      const label = this.add.text(0, by, key.toUpperCase(), {
+        fontFamily: 'monospace',
+        fontSize: '20px',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 2
+      }).setOrigin(0.5);
+      this.speedContainer.add(label);
+
+      const desc = this.add.text(0, by + 14, classDescs[key], {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#aaaaaa'
+      }).setOrigin(0.5);
+      this.speedContainer.add(desc);
+
+      const hitArea = this.add.rectangle(0, by, 240, 44, 0x000000, 0);
+      hitArea.setInteractive({ useHandCursor: true });
+      hitArea.on('pointerdown', () => this.selectSpeedClass(key));
+      this.speedContainer.add(hitArea);
+    });
+
+    const hint = this.add.text(0, 150, '1  50cc   2  100cc   3  150cc   4  300cc   ESC  BACK', {
+      fontFamily: 'monospace',
+      fontSize: '11px',
+      color: '#666666'
+    }).setOrigin(0.5);
+    this.speedContainer.add(hint);
+
+    this.speedKeyOne = () => this.selectSpeedClass('50cc');
+    this.speedKeyTwo = () => this.selectSpeedClass('100cc');
+    this.speedKeyThree = () => this.selectSpeedClass('150cc');
+    this.speedKeyFour = () => this.selectSpeedClass('300cc');
+    this.input.keyboard.on('keydown-ONE', this.speedKeyOne);
+    this.input.keyboard.on('keydown-TWO', this.speedKeyTwo);
+    this.input.keyboard.on('keydown-THREE', this.speedKeyThree);
+    this.input.keyboard.on('keydown-FOUR', this.speedKeyFour);
+  }
+
+  selectSpeedClass(key) {
     this.soundManager.play('select');
+    this.startRace(this.selectedDifficulty, key);
+  }
+
+  hideSpeedClassSelect() {
+    this.input.keyboard.off('keydown-ONE', this.speedKeyOne);
+    this.input.keyboard.off('keydown-TWO', this.speedKeyTwo);
+    this.input.keyboard.off('keydown-THREE', this.speedKeyThree);
+    this.input.keyboard.off('keydown-FOUR', this.speedKeyFour);
+    if (this.speedOverlay) { this.speedOverlay.destroy(); this.speedOverlay = null; }
+    if (this.speedContainer) { this.speedContainer.destroy(); this.speedContainer = null; }
+    this.currentOverlay = null;
+  }
+
+  // ── Start Race ──
+
+  startRace(difficulty, speedClass) {
     const selectedCar = CAR_KEYS[this.selectedCarIndex];
     this.soundManager.destroy();
 
@@ -299,7 +389,9 @@ export class CarSelectScene extends Phaser.Scene {
       carKey: selectedCar,
       carStats: CAR_STATS[selectedCar],
       difficulty: DIFFICULTY[difficulty],
-      difficultyName: difficulty
+      difficultyName: difficulty,
+      speedClass: SPEED_CLASS[speedClass],
+      speedClassName: speedClass
     });
   }
 }
